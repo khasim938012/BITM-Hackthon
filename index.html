@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriSmart AI - Farmer Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #86efac; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #22c55e; }
+
+        .mic-active { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+    <!-- Sidebar -->
+    <aside class="w-72 bg-gradient-to-b from-emerald-900 via-emerald-800 to-green-900 text-white flex flex-col shadow-2xl z-20 transition-all duration-300">
+        <div class="p-6 flex items-center gap-3 border-b border-emerald-700/50">
+            <div class="bg-gradient-to-br from-emerald-400 to-emerald-600 p-3 rounded-xl shadow-lg">
+                <i class="fa-solid fa-leaf text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-wider">AgriSmart AI</h1>
+                <p class="text-emerald-300 text-sm font-medium">Smart Farming Platform</p>
+            </div>
+        </div>
+        
+        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+            <button onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center gap-4 px-4 py-3 rounded-xl bg-emerald-700/50 text-emerald-50 transition-all hover:bg-emerald-600/50 border border-emerald-600/30" data-tab="dashboard">
+                <i class="fa-solid fa-chart-pie w-5"></i> <span>Overview Dashboard</span>
+            </button>
+            <button onclick="switchTab('voice')" class="nav-btn w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-emerald-700/50 text-emerald-100 transition-all hover:text-white border border-transparent hover:border-emerald-600/30" data-tab="voice">
+                <i class="fa-solid fa-microphone w-5"></i> <span>AI Voice Assistant</span>
+            </button>
+            <button onclick="switchTab('disease')" class="nav-btn w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-emerald-700/50 text-emerald-100 transition-all hover:text-white border border-transparent hover:border-emerald-600/30" data-tab="disease">
+                <i class="fa-solid fa-microscope w-5"></i> <span>Crop Disease Finder</span>
+            </button>
+            <button onclick="switchTab('soil')" class="nav-btn w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-emerald-700/50 text-emerald-100 transition-all hover:text-white border border-transparent hover:border-emerald-600/30" data-tab="soil">
+                <i class="fa-solid fa-seedling w-5"></i> <span>Soil & Crop Matcher</span>
+            </button>
+            <button onclick="switchTab('schemes')" class="nav-btn w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-emerald-700/50 text-emerald-100 transition-all hover:text-white border border-transparent hover:border-emerald-600/30" data-tab="schemes">
+                <i class="fa-solid fa-landmark w-5"></i> <span>Govt. Schemes</span>
+            </button>
+            <button onclick="switchTab('twin')" class="nav-btn w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-emerald-700/50 text-emerald-100 transition-all hover:text-white border border-transparent hover:border-emerald-600/30" data-tab="twin">
+                <i class="fa-solid fa-network-wired w-5"></i> <span>Farm Digital Twin</span>
+            </button>
+        </nav>
+        
+        <div class="p-4 border-t border-emerald-700/50">
+            <div class="bg-emerald-800/50 rounded-xl p-4 backdrop-blur-sm">
+                <div class="flex items-center gap-3 mb-2">
+                    <i class="fa-solid fa-location-dot text-emerald-400"></i>
+                    <span class="text-sm font-medium text-emerald-300">Current Location</span>
+                </div>
+                <p class="text-white font-semibold" id="sidebar-location">Detecting Location...</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto relative">
+        <!-- Header -->
+        <header class="glass sticky top-0 z-10 px-8 py-4 flex justify-between items-center shadow-lg border-b border-white/20">
+            <h2 id="page-title" class="text-2xl font-semibold text-emerald-900 flex items-center gap-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-chart-pie text-white text-sm"></i>
+                </div>
+                Overview Dashboard
+            </h2>
+            <div class="flex items-center gap-6">
+                <div class="bg-gradient-to-r from-yellow-400 to-orange-500 px-4 py-2 rounded-full shadow-sm border border-white/20 flex items-center gap-2 text-white font-medium text-sm">
+                    <i class="fa-solid fa-cloud-sun"></i> 28°C, Sunny
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <p class="text-sm font-semibold text-gray-900">Farmer John</p>
+                        <p class="text-xs text-gray-500">Premium Member</p>
+                    </div>
+                    <img src="https://ui-avatars.com/api/?name=Farmer+John&background=10b981&color=fff" alt="User" class="w-12 h-12 rounded-full border-2 border-emerald-200 shadow-md">
+                </div>
+            </div>
+        </header>
+
+        <div class="p-8 max-w-7xl mx-auto">
+            
+            <!-- OVERVIEW DASHBOARD -->
+            <div id="dashboard" class="tab-content active">
+                <!-- Welcome Hero Section -->
+                <div class="bg-gradient-to-br from-emerald-600 via-emerald-700 to-green-800 text-white rounded-3xl p-8 mb-8 relative overflow-hidden shadow-2xl">
+                    <div class="absolute inset-0 bg-black bg-opacity-20"></div>
+                    <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-white bg-opacity-10 rounded-full"></div>
+                    <div class="absolute -left-10 -top-10 w-40 h-40 bg-white bg-opacity-10 rounded-full"></div>
+                    <div class="relative z-10 flex flex-col md:flex-row items-center justify-between">
+                        <div class="mb-6 md:mb-0 md:mr-8">
+                            <h2 class="text-4xl font-bold mb-4">Welcome back, Farmer!</h2>
+                            <p class="text-emerald-100 mb-6 text-lg leading-relaxed max-w-lg">Your smart farming dashboard is ready. Monitor your crops, get AI insights, and optimize your yields with AgriSmart AI.</p>
+                            <div class="flex gap-4">
+                                <button onclick="switchTab('voice')" class="bg-white text-emerald-900 px-6 py-3 rounded-xl font-bold hover:bg-emerald-50 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                                    <i class="fa-solid fa-microphone mr-2"></i>Try Voice Assistant
+                                </button>
+                                <button onclick="switchTab('twin')" class="border-2 border-white text-white px-6 py-3 rounded-xl font-bold hover:bg-white hover:text-emerald-900 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+                                    <i class="fa-solid fa-chart-line mr-2"></i>View Predictions
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4 mx-auto backdrop-blur-sm">
+                                <i class="fa-solid fa-tractor text-6xl text-white"></i>
+                            </div>
+                            <p class="text-emerald-200 font-medium">Smart Farming Active</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Metrics Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 text-white">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-emerald-100 font-medium text-sm">Expected Yield</p>
+                                <h3 class="text-3xl font-bold">4.2 <span class="text-lg font-normal">Tons/Ha</span></h3>
+                            </div>
+                            <div class="bg-white bg-opacity-20 p-3 rounded-xl">
+                                <i class="fa-solid fa-arrow-trend-up text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-emerald-200 text-sm font-medium bg-white bg-opacity-20 px-2 py-1 rounded-full">+12% from last year</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 text-white">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-blue-100 font-medium text-sm">Soil Moisture</p>
+                                <h3 class="text-3xl font-bold">68%</h3>
+                            </div>
+                            <div class="bg-white bg-opacity-20 p-3 rounded-xl">
+                                <i class="fa-solid fa-droplet text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-blue-200 text-sm font-medium bg-white bg-opacity-20 px-2 py-1 rounded-full">Optimal conditions</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 text-white">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-amber-100 font-medium text-sm">Active Alerts</p>
+                                <h3 class="text-3xl font-bold">1</h3>
+                            </div>
+                            <div class="bg-white bg-opacity-20 p-3 rounded-xl">
+                                <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-amber-200 text-sm font-medium bg-white bg-opacity-20 px-2 py-1 rounded-full">Pest warning</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 text-white">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-purple-100 font-medium text-sm">Weather</p>
+                                <h3 class="text-3xl font-bold">28°C</h3>
+                            </div>
+                            <div class="bg-white bg-opacity-20 p-3 rounded-xl">
+                                <i class="fa-solid fa-cloud-sun text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-purple-200 text-sm font-medium bg-white bg-opacity-20 px-2 py-1 rounded-full">Sunny</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts and Analytics Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <!-- Yield Chart -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-bold text-gray-900">Yield Trends</h3>
+                            <div class="flex gap-2">
+                                <button class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium">1M</button>
+                                <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200">6M</button>
+                                <button class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200">1Y</button>
+                            </div>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="yieldChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Quick Actions</h3>
+                        <div class="space-y-4">
+                            <button onclick="switchTab('disease')" class="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-red-50 to-red-100 hover:from-red-100 hover:to-red-200 rounded-xl transition-all border border-red-200">
+                                <div class="bg-red-500 p-3 rounded-lg text-white">
+                                    <i class="fa-solid fa-microscope"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-semibold text-gray-900">Disease Check</p>
+                                    <p class="text-sm text-gray-600">Analyze crop health</p>
+                                </div>
+                            </button>
+
+                            <button onclick="switchTab('soil')" class="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 rounded-xl transition-all border border-amber-200">
+                                <div class="bg-amber-500 p-3 rounded-lg text-white">
+                                    <i class="fa-solid fa-seedling"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-semibold text-gray-900">Soil Analysis</p>
+                                    <p class="text-sm text-gray-600">Check soil quality</p>
+                                </div>
+                            </button>
+
+                            <button onclick="switchTab('schemes')" class="w-full flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl transition-all border border-blue-200">
+                                <div class="bg-blue-500 p-3 rounded-lg text-white">
+                                    <i class="fa-solid fa-landmark"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="font-semibold text-gray-900">Govt Schemes</p>
+                                    <p class="text-sm text-gray-600">Find subsidies</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & Notifications -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Recent Activity -->
+                    <div class="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                            <i class="fa-solid fa-clock text-emerald-500"></i>
+                            Recent Activity
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="activity-item flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-emerald-50 transition-all cursor-pointer">
+                                <div class="bg-emerald-500 p-2 rounded-lg text-white text-sm">
+                                    <i class="fa-solid fa-microphone"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-gray-900">Voice query processed</p>
+                                    <p class="text-sm text-gray-600">Asked about wheat diseases</p>
+                                    <p class="text-xs text-gray-400 mt-1">2 hours ago</p>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-400"></i>
+                            </div>
+
+                            <div class="activity-item flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-blue-50 transition-all cursor-pointer">
+                                <div class="bg-blue-500 p-2 rounded-lg text-white text-sm">
+                                    <i class="fa-solid fa-camera"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-gray-900">Image analyzed</p>
+                                    <p class="text-sm text-gray-600">Crop disease detection completed</p>
+                                    <p class="text-xs text-gray-400 mt-1">5 hours ago</p>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-400"></i>
+                            </div>
+
+                            <div class="activity-item flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-purple-50 transition-all cursor-pointer">
+                                <div class="bg-purple-500 p-2 rounded-lg text-white text-sm">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-gray-900">Yield prediction updated</p>
+                                    <p class="text-sm text-gray-600">2025 forecast generated</p>
+                                    <p class="text-xs text-gray-400 mt-1">1 day ago</p>
+                                </div>
+                                <i class="fa-solid fa-chevron-right text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Weather & Alerts -->
+                    <div class="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                            <i class="fa-solid fa-cloud-sun text-yellow-500"></i>
+                            Weather & Alerts
+                            <span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full ml-auto">3</span>
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="alert-pulse bg-gradient-to-r from-yellow-50 to-yellow-100 p-4 rounded-xl border border-yellow-200">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-triangle-exclamation text-yellow-600"></i>
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-gray-900">Pest Alert</p>
+                                        <p class="text-sm text-gray-600">Aphids detected in North Field</p>
+                                    </div>
+                                    <button class="text-yellow-600 hover:text-yellow-800">
+                                        <i class="fa-solid fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-cloud-rain text-blue-600"></i>
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-gray-900">Rain Expected</p>
+                                        <p class="text-sm text-gray-600">Light showers tomorrow, 15mm</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-leaf text-green-600"></i>
+                                    <div class="flex-1">
+                                        <p class="font-semibold text-gray-900">Optimal Planting</p>
+                                        <p class="text-sm text-gray-600">Best time for maize sowing</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI VOICE ASSISTANT -->
+            <div id="voice" class="tab-content">
+                <div class="max-w-2xl mx-auto text-center mt-10">
+                    <div class="bg-white p-10 rounded-3xl shadow-lg border border-emerald-100">
+                        <h3 class="text-2xl font-bold text-emerald-900 mb-2">Agri Voice Assistant</h3>
+                        <p class="text-gray-500 mb-10">Tap the microphone and ask me anything about your farm, crops, or weather.</p>
+                        
+                        <button id="mic-btn" class="w-32 h-32 bg-emerald-500 rounded-full text-white text-5xl shadow-xl hover:bg-emerald-600 transition-colors flex items-center justify-center mx-auto mb-8">
+                            <i class="fa-solid fa-microphone"></i>
+                        </button>
+                        
+                        <div id="voice-status" class="text-sm font-medium text-emerald-600 mb-4 h-6">Ready to listen...</div>
+                        
+                        <div class="text-left bg-gray-50 p-6 rounded-2xl border border-gray-100 min-h-[150px]">
+                            <p id="user-transcript" class="text-gray-800 font-medium mb-4 italic text-lg"></p>
+                            <p id="ai-response" class="text-emerald-900 leading-relaxed"></p>
+                            <div id="voice-loader" class="hidden flex gap-2 mt-4 items-center text-emerald-600">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Analyzing your request...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CROP DISEASE FINDER -->
+            <div id="disease" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-emerald-100">
+                        <h3 class="text-xl font-bold text-emerald-900 mb-4"><i class="fa-solid fa-camera text-emerald-500 mr-2"></i> Upload Crop Image</h3>
+                        <p class="text-gray-500 mb-6 text-sm">Upload a clear picture of the affected leaf or plant.</p>
+                        
+                        <div class="border-2 border-dashed border-emerald-300 rounded-2xl p-8 text-center bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer relative" id="drop-zone-disease">
+                            <input type="file" id="disease-image" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                            <i class="fa-solid fa-cloud-arrow-up text-5xl text-emerald-400 mb-4"></i>
+                            <p class="text-emerald-800 font-medium">Click or drag image here</p>
+                        </div>
+                        
+                        <div id="disease-preview-container" class="mt-6 hidden">
+                            <img id="disease-preview" class="w-full h-64 object-cover rounded-xl shadow-md border border-gray-200">
+                            <button id="analyze-disease-btn" class="mt-4 w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-md flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-microscope"></i> Analyze Image
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-emerald-100 h-full">
+                        <h3 class="text-xl font-bold text-emerald-900 mb-4">Analysis Result</h3>
+                        <div id="disease-result" class="h-full flex flex-col justify-center items-center text-center text-gray-400">
+                            <i class="fa-solid fa-file-medical text-6xl mb-4 opacity-20"></i>
+                            <p>Upload an image and run analysis to see results here.</p>
+                        </div>
+                        <div id="disease-loader" class="hidden h-full flex flex-col justify-center items-center text-emerald-600">
+                            <i class="fa-solid fa-circle-notch fa-spin text-5xl mb-4"></i>
+                            <p class="font-medium animate-pulse">AI is analyzing the leaf patterns...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOIL DETECTION -->
+            <div id="soil" class="tab-content">
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-emerald-100 mb-8">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-2xl font-bold text-emerald-900 mb-2">Soil & Crop Matcher</h3>
+                            <p class="text-gray-500">We use your live GPS location and soil image to recommend the best crops.</p>
+                        </div>
+                        <div class="bg-blue-50 text-blue-800 px-4 py-2 rounded-xl border border-blue-200 flex items-center gap-2 mt-4 md:mt-0">
+                            <i class="fa-solid fa-location-crosshairs"></i>
+                            <span id="gps-coords">Fetching GPS...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Upload Soil Image (Local Storage)</label>
+                            <input type="file" id="soil-image" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 border border-gray-200 rounded-xl mb-4">
+                            <img id="soil-preview" class="w-full h-48 object-cover rounded-xl shadow-inner hidden bg-gray-100">
+                        </div>
+                        <div class="flex flex-col justify-center">
+                            <button id="analyze-soil-btn" class="w-full bg-amber-600 text-white py-4 rounded-xl font-bold hover:bg-amber-700 transition-colors shadow-lg flex justify-center items-center gap-2 text-lg">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Predict Best Crops
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="soil-result-container" class="hidden bg-white p-8 rounded-3xl shadow-sm border border-emerald-100">
+                    <h3 class="text-xl font-bold text-emerald-900 mb-6 border-b pb-4">AI Soil Analysis & Crop Recommendations</h3>
+                    <div id="soil-result-content" class="prose prose-emerald max-w-none text-gray-700"></div>
+                </div>
+            </div>
+
+            <!-- GOVT SCHEMES -->
+            <div id="schemes" class="tab-content">
+                <div class="bg-emerald-800 text-white p-10 rounded-3xl shadow-lg mb-8 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+                    <h2 class="text-3xl font-bold mb-4">Government Agricultural Schemes</h2>
+                    <p class="text-emerald-100 mb-6 text-lg max-w-2xl">Discover financial aids, subsidies, and insurance schemes provided by the government specifically tailored for your region and crop type.</p>
+                    <div class="flex gap-4">
+                        <input type="text" id="scheme-query" placeholder="e.g., Subsidies for solar pumps in India" class="flex-1 px-6 py-4 rounded-xl text-gray-800 focus:outline-none focus:ring-4 focus:ring-emerald-400 font-medium">
+                        <button id="search-schemes-btn" class="bg-amber-500 text-amber-950 px-8 py-4 rounded-xl font-bold hover:bg-amber-400 transition-colors shadow-lg">
+                            <i class="fa-solid fa-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="schemes-loader" class="hidden text-center py-10">
+                    <i class="fa-solid fa-spinner fa-spin text-4xl text-emerald-600 mb-4"></i>
+                    <p class="text-emerald-800 font-medium">Searching official databases via AI...</p>
+                </div>
+                
+                <div id="schemes-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Default placeholders -->
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">Insurance</span>
+                        <h4 class="font-bold text-lg text-emerald-900 mt-4 mb-2">PM Fasal Bima Yojana</h4>
+                        <p class="text-gray-600 text-sm mb-4">Provides comprehensive insurance cover against failure of the crop thus helping in stabilizing the income of the farmers.</p>
+                        <a href="#" class="text-emerald-600 font-medium text-sm hover:underline">Read more <i class="fa-solid fa-arrow-right text-xs"></i></a>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <span class="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full">Financial Aid</span>
+                        <h4 class="font-bold text-lg text-emerald-900 mt-4 mb-2">PM Kisan Samman Nidhi</h4>
+                        <p class="text-gray-600 text-sm mb-4">Income support of ₹6000/- per year in three equal installments to all land holding farmer families.</p>
+                        <a href="#" class="text-emerald-600 font-medium text-sm hover:underline">Read more <i class="fa-solid fa-arrow-right text-xs"></i></a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIGITAL TWIN -->
+            <div id="twin" class="tab-content">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-emerald-900">Farm Digital Twin & Predictive Analytics</h2>
+                        <p class="text-gray-500 text-sm mt-1">Simulating your farm's historical data to predict future yields.</p>
+                    </div>
+                    <button id="run-prediction-btn" class="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow flex items-center gap-2">
+                        <i class="fa-solid fa-brain"></i> Generate Future Prediction
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-emerald-100">
+                        <h3 class="font-bold text-emerald-900 mb-4">Historical Yield Data (Wheat, Loamy Soil)</h3>
+                        <div class="h-64 relative w-full">
+                            <canvas id="yieldChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-emerald-900 text-white p-6 rounded-3xl shadow-sm flex flex-col justify-center">
+                        <h3 class="text-emerald-300 font-bold mb-2 uppercase text-sm tracking-wider">Live Twin Status</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between border-b border-emerald-800 pb-2">
+                                <span class="text-emerald-100"><i class="fa-solid fa-seedling w-6"></i> Crop Type</span>
+                                <span class="font-bold">Wheat</span>
+                            </div>
+                            <div class="flex justify-between border-b border-emerald-800 pb-2">
+                                <span class="text-emerald-100"><i class="fa-solid fa-layer-group w-6"></i> Soil Type</span>
+                                <span class="font-bold">Loamy</span>
+                            </div>
+                            <div class="flex justify-between border-b border-emerald-800 pb-2">
+                                <span class="text-emerald-100"><i class="fa-solid fa-faucet-drip w-6"></i> Water Type</span>
+                                <span class="font-bold">Irrigation</span>
+                            </div>
+                            <div class="flex justify-between pb-2">
+                                <span class="text-emerald-100"><i class="fa-solid fa-cloud-rain w-6"></i> Avg Rainfall</span>
+                                <span class="font-bold">460 mm/yr</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="prediction-result-card" class="hidden bg-white p-8 rounded-3xl shadow-lg border-2 border-amber-200 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-amber-200 text-amber-900 text-xs font-bold px-4 py-1 rounded-bl-xl">AI PREDICTION</div>
+                    <h3 class="text-2xl font-bold text-emerald-900 mb-4 flex items-center gap-3">
+                        <i class="fa-solid fa-chart-line text-emerald-500"></i> Deep Analysis & Future Yield Prediction
+                    </h3>
+                    <div id="prediction-loader" class="hidden flex items-center gap-3 text-emerald-600 my-8">
+                        <i class="fa-solid fa-cog fa-spin text-2xl"></i> Running simulation based on 5-year historical data...
+                    </div>
+                    <div id="prediction-content" class="prose prose-emerald max-w-none text-gray-700 leading-relaxed"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- JS Logic -->
+    <script>
+        // --- CONFIGURATION ---
+        // Instructions: Set apiKey = "". The execution environment injects the key.
+        const apiKey = "AIzaSyDl6pL8DFAVh8fYClswbTTOb2J7XpDEmW8"; 
+        const API_URL_TEXT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const API_URL_TTS = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+        // --- MOCK DATA FOR DIGITAL TWIN ---
+        const csvData = `Year,Crop,Soil_Type,Water_Type,Rainfall_mm,Yield_tons_per_ha
+2019,Wheat,Loamy,Irrigation,450,3.2
+2020,Wheat,Loamy,Irrigation,480,3.5
+2021,Wheat,Loamy,Irrigation,410,2.9
+2022,Wheat,Loamy,Irrigation,500,3.8
+2023,Wheat,Loamy,Irrigation,460,3.4
+2024,Wheat,Loamy,Irrigation,440,3.3`;
+
+        // --- STATE & INIT ---
+        let userLocation = { lat: "Unknown", lng: "Unknown", text: "Detecting location..." };
+        let audioContext;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            getLocation();
+        });
+
+        // --- UTILS ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-emerald-800', 'text-emerald-50');
+                btn.classList.add('text-emerald-100');
+                if(btn.dataset.tab === tabId) {
+                    btn.classList.add('bg-emerald-800', 'text-emerald-50');
+                    btn.classList.remove('text-emerald-100');
+                    document.getElementById('page-title').innerText = btn.innerText;
+                }
+            });
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        async function fetchWithRetry(url, options, retries = 5) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
+                }
+            }
+        }
+
+        // Markdown to HTML simple parser
+        function parseMD(text) {
+            let html = text.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mt-4 mb-2">$1</h3>')
+                           .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-5 mb-3">$1</h2>')
+                           .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>')
+                           .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+                           .replace(/\*(.*)\*/gim, '<em>$1</em>');
+            html = html.replace(/^\* (.*$)/gim, '<li class="ml-4 list-disc">$1</li>');
+            return html.replace(/\n/gim, '<br>');
+        }
+
+        // --- GEOLOCATION ---
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        userLocation = { lat: pos.coords.latitude.toFixed(4), lng: pos.coords.longitude.toFixed(4) };
+                        document.getElementById('sidebar-location').innerText = `Lat: ${userLocation.lat}, Lng: ${userLocation.lng}`;
+                        document.getElementById('gps-coords').innerText = `${userLocation.lat}, ${userLocation.lng}`;
+                    },
+                    (err) => {
+                        document.getElementById('sidebar-location').innerText = "Location access denied";
+                        document.getElementById('gps-coords').innerText = "Location manual mode";
+                    }
+                );
+            }
+        }
+
+        // --- 1. AI VOICE ASSISTANT ---
+        const micBtn = document.getElementById('mic-btn');
+        const transcriptEl = document.getElementById('user-transcript');
+        const aiResponseEl = document.getElementById('ai-response');
+        const voiceStatus = document.getElementById('voice-status');
+        const voiceLoader = document.getElementById('voice-loader');
+
+        let recognition;
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                micBtn.classList.add('mic-active');
+                voiceStatus.innerText = "Listening... Speak now.";
+                transcriptEl.innerText = "";
+                aiResponseEl.innerText = "";
+            };
+
+            recognition.onresult = async (event) => {
+                const text = event.results[0][0].transcript;
+                transcriptEl.innerText = `You: "${text}"`;
+                voiceStatus.innerText = "Processing...";
+                micBtn.classList.remove('mic-active');
+                voiceLoader.classList.remove('hidden');
+                
+                await handleVoiceCommand(text);
+            };
+
+            recognition.onerror = () => {
+                micBtn.classList.remove('mic-active');
+                voiceStatus.innerText = "Error listening. Please try again.";
+            };
+
+            recognition.onend = () => {
+                micBtn.classList.remove('mic-active');
+            }
+        } else {
+            micBtn.style.display = 'none';
+            voiceStatus.innerText = "Speech Recognition not supported in this browser.";
+        }
+
+        micBtn.addEventListener('click', () => {
+            if (recognition) recognition.start();
+        });
+
+        async function handleVoiceCommand(text) {
+            try {
+                // Call backend API
+                const response = await fetch('http://localhost:5000/api/voice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Backend API error');
+                }
+                
+                const data = await response.json();
+                const replyText = data.response || "Sorry, I couldn't generate a response.";
+                aiResponseEl.innerHTML = parseMD(replyText);
+                voiceLoader.classList.add('hidden');
+                voiceStatus.innerText = "Ready to listen...";
+
+                // Optional: Play TTS if needed
+                // playTTS(replyText);
+
+            } catch (error) {
+                console.error(error);
+                voiceLoader.classList.add('hidden');
+                aiResponseEl.innerText = "Error connecting to AI. Please try again.";
+            }
+        }
+
+        async function playTTS(text) {
+            try {
+                const ttsPayload = {
+                    contents: [{ parts: [{ text: text }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+
+                const ttsRes = await fetchWithRetry(API_URL_TTS, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ttsPayload)
+                });
+
+                const inlineData = ttsRes.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+                if (!inlineData) return;
+
+                // Decode Base64
+                const binaryStr = atob(inlineData.data);
+                const bytes = new Uint8Array(binaryStr.length);
+                for (let i = 0; i < binaryStr.length; i++) {
+                    bytes[i] = binaryStr.charCodeAt(i);
+                }
+
+                // Convert PCM16 to WAV (Assuming 24000Hz based on typical Gemini TTS output)
+                const sampleRate = 24000; 
+                const wavBuffer = pcmToWav(bytes.buffer, sampleRate);
+
+                // Play Audio
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const audioData = await audioContext.decodeAudioData(wavBuffer);
+                const source = audioContext.createBufferSource();
+                source.buffer = audioData;
+                source.connect(audioContext.destination);
+                source.start(0);
+
+            } catch (err) {
+                console.error("TTS Error:", err);
+            }
+        }
+
+        // PCM to WAV Converter
+        function pcmToWav(pcmData, sampleRate) {
+            const numChannels = 1;
+            const byteRate = sampleRate * numChannels * 2;
+            const blockAlign = numChannels * 2;
+            const buffer = new ArrayBuffer(44 + pcmData.byteLength);
+            const view = new DataView(buffer);
+
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcmData.byteLength, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, 16, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcmData.byteLength, true);
+
+            const pcm8 = new Uint8Array(pcmData);
+            const wav8 = new Uint8Array(buffer, 44);
+            wav8.set(pcm8);
+
+            return buffer;
+        }
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+        }
+
+        // --- 2. CROP DISEASE FINDER ---
+        const diseaseInput = document.getElementById('disease-image');
+        const diseasePreview = document.getElementById('disease-preview');
+        const diseasePreviewContainer = document.getElementById('disease-preview-container');
+        const dropZone = document.getElementById('drop-zone-disease');
+        let diseaseBase64 = "";
+        let diseaseMimeType = "image/jpeg";
+
+        diseaseInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    const fullData = re.target.result;
+                    const mimeType = fullData.split(',')[0].split(':')[1].split(';')[0]; // e.g., image/jpeg
+                    diseasePreview.src = fullData;
+                    diseaseBase64 = fullData.split(',')[1];
+                    diseaseMimeType = mimeType;
+                    diseasePreviewContainer.classList.remove('hidden');
+                    dropZone.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('analyze-disease-btn').addEventListener('click', async () => {
+            if (!diseaseBase64) return;
+            document.getElementById('disease-result').classList.add('hidden');
+            document.getElementById('disease-loader').classList.remove('hidden');
+
+            try {
+                const response = await fetch('http://localhost:5000/api/disease', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: diseaseBase64 })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Backend API error');
+                }
+                
+                const data = await response.json();
+                const text = data.message || "Analysis complete.";
+                
+                document.getElementById('disease-loader').classList.add('hidden');
+                document.getElementById('disease-result').classList.remove('hidden');
+                
+                document.getElementById('disease-result').innerHTML = `
+                    <div class="text-left w-full h-full overflow-y-auto pr-2">
+                        <div class="bg-emerald-50 text-emerald-800 p-4 rounded-xl border border-emerald-200 mb-4 flex items-center gap-3">
+                            <i class="fa-solid fa-check-circle text-2xl"></i> <span class="font-bold text-lg">Analysis Complete</span>
+                        </div>
+                        <div class="prose prose-emerald max-w-none text-gray-700">${parseMD(text)}</div>
+                    </div>`;
+            } catch (err) {
+                document.getElementById('disease-loader').classList.add('hidden');
+                document.getElementById('disease-result').classList.remove('hidden');
+                document.getElementById('disease-result').innerHTML = "<p class='text-red-500'>Error analyzing image. Please try again.</p>";
+            }
+        });
+
+        // --- 3. SOIL & CROP MATCHER ---
+        const soilInput = document.getElementById('soil-image');
+        const soilPreview = document.getElementById('soil-preview');
+        let soilBase64 = "";
+        let soilMimeType = "image/jpeg";
+
+        soilInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    const fullData = re.target.result;
+                    const mimeType = fullData.split(',')[0].split(':')[1].split(';')[0];
+                    soilPreview.src = fullData;
+                    soilBase64 = fullData.split(',')[1];
+                    soilMimeType = mimeType;
+                    soilPreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('analyze-soil-btn').addEventListener('click', async () => {
+            const resultContainer = document.getElementById('soil-result-container');
+            const resultContent = document.getElementById('soil-result-content');
+            
+            resultContainer.classList.remove('hidden');
+            resultContent.innerHTML = '<div class="flex items-center gap-2 text-emerald-600"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing soil texture and location data...</div>';
+
+            try {
+                const response = await fetch('http://localhost:5000/api/soil', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        image: soilBase64 || null,
+                        lat: userLocation.lat,
+                        lng: userLocation.lng
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Backend API error');
+                }
+                
+                const data = await response.json();
+                const text = data.analysis || "Analysis complete.";
+                
+                resultContent.innerHTML = parseMD(text);
+            } catch (err) {
+                resultContent.innerHTML = "<p class='text-red-500'>Error processing request.</p>";
+            }
+        });
+
+        // --- 4. GOVT SCHEMES (WITH SEARCH GROUNDING) ---
+        document.getElementById('search-schemes-btn').addEventListener('click', async () => {
+            const query = document.getElementById('scheme-query').value || "Agricultural subsidies and schemes for farmers in my region";
+            const loader = document.getElementById('schemes-loader');
+            const resultsDiv = document.getElementById('schemes-results');
+            
+            resultsDiv.innerHTML = '';
+            loader.classList.remove('hidden');
+
+            try {
+                const response = await fetch('http://localhost:5000/api/schemes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Backend API error');
+                }
+                
+                const data = await response.json();
+                const text = data.schemes || "No schemes found.";
+                
+                loader.classList.add('hidden');
+                
+                // Render text into full width block since formatting varies
+                resultsDiv.className = "bg-white p-8 rounded-3xl shadow-sm border border-emerald-100";
+                resultsDiv.innerHTML = `<div class="prose prose-emerald max-w-none">${parseMD(text)}</div>`;
+                
+            } catch (err) {
+                loader.classList.add('hidden');
+                resultsDiv.innerHTML = "<p class='text-red-500'>Error fetching schemes.</p>";
+            }
+        });
+
+        // --- 5. DIGITAL TWIN ---
+        function initChart() {
+            const ctx = document.getElementById('yieldChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['2019', '2020', '2021', '2022', '2023', '2024'],
+                    datasets: [{
+                        label: 'Wheat Yield (Tons/Ha)',
+                        data: [3.2, 3.5, 2.9, 3.8, 3.4, 3.3],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#047857',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: false, min: 2.0 } }
+                }
+            });
+        }
+
+        document.getElementById('run-prediction-btn').addEventListener('click', async () => {
+            const card = document.getElementById('prediction-result-card');
+            const loader = document.getElementById('prediction-loader');
+            const content = document.getElementById('prediction-content');
+
+            card.classList.remove('hidden');
+            content.innerHTML = '';
+            loader.classList.remove('hidden');
+
+            try {
+                const response = await fetch('http://localhost:5000/api/twin', {
+                    method: 'GET'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Backend API error');
+                }
+                
+                const data = await response.json();
+                const text = data.analysis || "Prediction complete.";
+                
+                loader.classList.add('hidden');
+                content.innerHTML = parseMD(text);
+            } catch (err) {
+                loader.classList.add('hidden');
+                content.innerHTML = "<p class='text-red-500'>Error running digital twin simulation.</p>";
+            }
+        });
+
+    </script>
+</body>
+</html>
